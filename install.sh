@@ -1,10 +1,31 @@
 #!/usr/bin/env bash
 # sfmeta-reader skill installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/<OWNER>/sfmeta-reader/main/install.sh | bash
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash -s -- --dir ~/.ugent/skills
 set -euo pipefail
 
+# ── Parse arguments ─────────────────────────────────────────────
+INSTALL_DIR=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dir)
+      INSTALL_DIR="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: install.sh [--dir <install-directory>]" >&2
+      exit 1
+      ;;
+  esac
+done
+
 REPO="unizhu/sfmeta-reader"
-INSTALL_DIR="${SFMETA_INSTALL_DIR:-$HOME/.claude/skills/sfmeta-reader}"
+# Default: ~/.claude/skills/sfmeta-reader, overridable by --dir or env var
+if [ -z "$INSTALL_DIR" ]; then
+  INSTALL_DIR="${SFMETA_INSTALL_DIR:-$HOME/.claude/skills/sfmeta-reader}"
+fi
 API_LATEST_TAG="https://api.github.com/repos/${REPO}/releases/tags/latest"
 API_LATEST="https://api.github.com/repos/${REPO}/releases/latest"
 

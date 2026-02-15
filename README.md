@@ -30,7 +30,32 @@ Salesforce metadata XML is verbose (namespaces, repeated wrappers, deep nesting)
 
 ## Install
 
-### Pre-built binaries (fastest)
+### One-liner install (recommended)
+
+Downloads the correct binary for your platform and installs the full Agent Skill package.
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1 | iex
+```
+
+**Custom install directory** — use `--dir` to choose where the skill is installed:
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash -s -- --dir ~/.ugent/skills
+
+# Windows (PowerShell)
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1))) -Dir "$env:USERPROFILE\.ugent\skills"
+```
+
+Default install directory: `~/.claude/skills/sfmeta-reader/`
+
+### Pre-built binaries
 
 Download a binary for your platform from the [GitHub Releases](https://github.com/unizhu/sfmeta-reader/releases) page:
 
@@ -45,7 +70,7 @@ Download a binary for your platform from the [GitHub Releases](https://github.co
 
 ### From source
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/unizhu/sfmeta-reader.git
 cd sfmeta-reader
 cargo build --release
 ```
@@ -169,27 +194,7 @@ skills/sfmeta-reader/
 2. Wrapper scripts detect the OS and architecture, then run the correct binary from `bin/`.
 3. The LLM analyzes the TOON/Compact/JSON output to summarize, audit, or compare metadata.
 
-### Install the skill (one-liner)
-
-**macOS / Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1 | iex
-```
-
-This will:
-1. Detect your OS and architecture automatically
-2. Download the correct binary from the latest GitHub Release
-3. Install the full skill package to `~/.claude/skills/sfmeta-reader/`
-
-To install to a custom directory, set `SFMETA_INSTALL_DIR` before running:
-```bash
-SFMETA_INSTALL_DIR=~/my-skills/sfmeta-reader curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
-```
+To install, see the [one-liner install commands](#one-liner-install-recommended) above.
 
 ## Project layout
 

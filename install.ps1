@@ -1,9 +1,25 @@
 # sfmeta-reader skill installer for Windows
-# Usage: irm https://raw.githubusercontent.com/<OWNER>/sfmeta-reader/main/install.ps1 | iex
+# Usage:
+#   irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1 | iex
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1))) -Dir "$env:USERPROFILE\.ugent\skills"
+param(
+    [Alias("dir")]
+    [string]$Dir = ""
+)
+
 $ErrorActionPreference = "Stop"
 
 $Repo = "unizhu/sfmeta-reader"
-$InstallDir = if ($env:SFMETA_INSTALL_DIR) { $env:SFMETA_INSTALL_DIR } else { "$env:USERPROFILE\.claude\skills\sfmeta-reader" }
+
+# Default: ~\.claude\skills\sfmeta-reader, overridable by -Dir or env var
+if ($Dir) {
+    $InstallDir = $Dir
+} elseif ($env:SFMETA_INSTALL_DIR) {
+    $InstallDir = $env:SFMETA_INSTALL_DIR
+} else {
+    $InstallDir = "$env:USERPROFILE\.claude\skills\sfmeta-reader"
+}
+
 $ApiLatestTag = "https://api.github.com/repos/$Repo/releases/tags/latest"
 $ApiLatest = "https://api.github.com/repos/$Repo/releases/latest"
 
