@@ -169,9 +169,27 @@ skills/sfmeta-reader/
 2. Wrapper scripts detect the OS and architecture, then run the correct binary from `bin/`.
 3. The LLM analyzes the TOON/Compact/JSON output to summarize, audit, or compare metadata.
 
-### Using the skill
+### Install the skill (one-liner)
 
-Download the `sfmeta-reader-skill` artifact from a [GitHub Release](https://github.com/unizhu/sfmeta-reader/releases) and place it in your agent's skills directory (e.g. `~/.claude/skills/`).
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.ps1 | iex
+```
+
+This will:
+1. Detect your OS and architecture automatically
+2. Download the correct binary from the latest GitHub Release
+3. Install the full skill package to `~/.claude/skills/sfmeta-reader/`
+
+To install to a custom directory, set `SFMETA_INSTALL_DIR` before running:
+```bash
+SFMETA_INSTALL_DIR=~/my-skills/sfmeta-reader curl -fsSL https://raw.githubusercontent.com/unizhu/sfmeta-reader/main/install.sh | bash
+```
 
 ## Project layout
 
