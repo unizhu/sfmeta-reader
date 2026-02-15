@@ -3,9 +3,10 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/<OWNER>/sfmeta-reader/main/install.sh | bash
 set -euo pipefail
 
-REPO="<OWNER>/sfmeta-reader"
+REPO="unizhu/sfmeta-reader"
 INSTALL_DIR="${SFMETA_INSTALL_DIR:-$HOME/.claude/skills/sfmeta-reader}"
-API="https://api.github.com/repos/${REPO}/releases/latest"
+API_LATEST_TAG="https://api.github.com/repos/${REPO}/releases/tags/latest"
+API_LATEST="https://api.github.com/repos/${REPO}/releases/latest"
 
 # ── Detect platform ────────────────────────────────────────────
 case "$(uname -s)" in
@@ -34,7 +35,12 @@ echo ""
 
 # ── Resolve download URL from latest release ───────────────────
 echo "🌐  Fetching latest release from ${REPO}..."
-RELEASE_JSON=$(curl -fsSL "$API")
+
+# Try rolling "latest" tag first (pre-release from CI), then fall back to latest stable
+RELEASE_JSON=$(curl -fsSL "$API_LATEST_TAG" 2>/dev/null || true)
+if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message"'; then
+  RELEASE_JSON=$(curl -fsSL "$API_LATEST")
+fi
 DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\":[[:space:]]*\"[^\"]*${BINARY}\"" | head -1 | cut -d'"' -f4)
 TAG=$(echo "$RELEASE_JSON" | grep -o '"tag_name":[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)
 

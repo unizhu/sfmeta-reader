@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
@@ -31,11 +32,15 @@ jobs:
       build-macos: ${{ steps.detect.outputs.build-macos }}
       build-linux: ${{ steps.detect.outputs.build-linux }}
       build-windows: ${{ steps.detect.outputs.build-windows }}
+      should-build: ${{ steps.detect.outputs.should-build }}
     steps:
       - name: Detect platforms from commit message or dispatch input
         id: detect
         run: |
+          SHOULD_BUILD=false
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHOULD_BUILD=true
             PLATFORM="${{ github.event.inputs.platforms }}"
             case "$PLATFORM" in
               all)
@@ -59,25 +64,31 @@ jobs:
                 echo "build-windows=true"  >> "$GITHUB_OUTPUT"
                 ;;
             esac
+          elif echo "${{ github.ref }}" | grep -q '^refs/tags/v'; then
+            # Tag push — always build all platforms
+            SHOULD_BUILD=true
+            echo "build-macos=true"   >> "$GITHUB_OUTPUT"
+            echo "build-linux=true"   >> "$GITHUB_OUTPUT"
+            echo "build-windows=true" >> "$GITHUB_OUTPUT"
           else
-            # Read commit message for keywords
+            # Regular push — check commit message for keywords
             MSG="${{ github.event.head_commit.message }}"
             MACOS=false; LINUX=false; WINDOWS=false
 
             if echo "$MSG" | grep -qi '\[ci-all\]'; then
-              MACOS=true; LINUX=true; WINDOWS=true
+              MACOS=true; LINUX=true; WINDOWS=true; SHOULD_BUILD=true
             else
-              echo "$MSG" | grep -qi '\[ci-macos\]'   && MACOS=true
-              echo "$MSG" | grep -qi '\[ci-linux\]'   && LINUX=true
-              echo "$MSG" | grep -qi '\[ci-windows\]' && WINDOWS=true
+              if echo "$MSG" | grep -qi '\[ci-macos\]'; then MACOS=true; SHOULD_BUILD=true; fi
+              if echo "$MSG" | grep -qi '\[ci-linux\]'; then LINUX=true; SHOULD_BUILD=true; fi
+              if echo "$MSG" | grep -qi '\[ci-windows\]'; then WINDOWS=true; SHOULD_BUILD=true; fi
             fi
 
-            # Default: if no keyword found, skip all builds
             echo "build-macos=$MACOS"     >> "$GITHUB_OUTPUT"
             echo "build-linux=$LINUX"     >> "$GITHUB_OUTPUT"
             echo "build-windows=$WINDOWS" >> "$GITHUB_OUTPUT"
           fi
 
+          echo "should-build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
           echo "=== Platform detection ==="
           cat "$GITHUB_OUTPUT"
 
@@ -193,23 +204,47 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.exe
 
-  # ── GitHub Release ────────────────────────────────────────────
+  # ── Auto Release ──────────────────────────────────────────────
   release:
     needs: [detect-platforms, build-macos, build-linux, build-windows]
     if: |
       always() &&
-      startsWith(github.ref, 'refs/tags/v') &&
+      needs.detect-platforms.outputs.should-build == 'true' &&
       !contains(needs.*.result, 'failure')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v6
         with:
           path: artifacts
+
       - name: List artifacts
         run: find artifacts -type f | sort
-      - uses: softprops/action-gh-release@v2
+
+      # Tagged release (v1.0.0, etc.)
+      - name: Create versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Rolling "latest" release for non-tag pushes (keeps install.sh working)
+      - name: Update latest release
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Build
+          body: |
+            Rolling release — automatically updated on every CI build.
+            Use the install script to download:
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+          prerelease: true
+          make_latest: false
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -219,6 +254,7 @@ jobs:
     needs: [detect-platforms, build-macos, build-linux, build-windows]
     if: |
       always() &&
+      needs.detect-platforms.outputs.should-build == 'true' &&
       !contains(needs.*.result, 'failure')
     runs-on: ubuntu-24.04
     steps:
@@ -239,7 +275,7 @@ jobs:
           done
           echo "=== Skill package contents ==="
           find skills/sfmeta-reader -type f | sort
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: sfmeta-reader-skill
           path: skills/sfmeta-reader/

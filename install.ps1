@@ -2,9 +2,10 @@
 # Usage: irm https://raw.githubusercontent.com/<OWNER>/sfmeta-reader/main/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 
-$Repo = "<OWNER>/sfmeta-reader"
+$Repo = "unizhu/sfmeta-reader"
 $InstallDir = if ($env:SFMETA_INSTALL_DIR) { $env:SFMETA_INSTALL_DIR } else { "$env:USERPROFILE\.claude\skills\sfmeta-reader" }
-$Api = "https://api.github.com/repos/$Repo/releases/latest"
+$ApiLatestTag = "https://api.github.com/repos/$Repo/releases/tags/latest"
+$ApiLatest = "https://api.github.com/repos/$Repo/releases/latest"
 
 # ── Detect architecture ────────────────────────────────────────
 $Arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
@@ -22,7 +23,11 @@ Write-Host ""
 
 # ── Fetch latest release ───────────────────────────────────────
 Write-Host "🌐  Fetching latest release from $Repo..."
-$Release = Invoke-RestMethod -Uri $Api
+try {
+    $Release = Invoke-RestMethod -Uri $ApiLatestTag
+} catch {
+    $Release = Invoke-RestMethod -Uri $ApiLatest
+}
 $Asset = $Release.assets | Where-Object { $_.name -eq $Binary }
 $Tag = $Release.tag_name
 
