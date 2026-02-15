@@ -13,7 +13,8 @@ $Repo = "unizhu/sfmeta-reader"
 
 # Default: ~\.claude\skills\sfmeta-reader, overridable by -Dir or env var
 if ($Dir) {
-    $InstallDir = $Dir
+    # Append \sfmeta-reader so the skill lives in its own subfolder
+    $InstallDir = Join-Path $Dir "sfmeta-reader"
 } elseif ($env:SFMETA_INSTALL_DIR) {
     $InstallDir = $env:SFMETA_INSTALL_DIR
 } else {

@@ -23,7 +23,10 @@ done
 
 REPO="unizhu/sfmeta-reader"
 # Default: ~/.claude/skills/sfmeta-reader, overridable by --dir or env var
-if [ -z "$INSTALL_DIR" ]; then
+if [ -n "$INSTALL_DIR" ]; then
+  # Append /sfmeta-reader so the skill lives in its own subfolder
+  INSTALL_DIR="${INSTALL_DIR%/}/sfmeta-reader"
+else
   INSTALL_DIR="${SFMETA_INSTALL_DIR:-$HOME/.claude/skills/sfmeta-reader}"
 fi
 API_LATEST_TAG="https://api.github.com/repos/${REPO}/releases/tags/latest"
