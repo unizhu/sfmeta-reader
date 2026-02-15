@@ -1,15 +1,15 @@
 ---
-name: sfmeta-reader
+name: salesforce-metadata-reader
 description: Read and analyze Salesforce Metadata API XML files by converting them into compact, LLM-friendly text (TOON, Compact, or JSON). Use this skill when the user asks you to analyze, summarize, compare, or understand Salesforce metadata files such as Custom Objects, Profiles, Permission Sets, Flows, Layouts, Apex classes, or any other Salesforce XML metadata. Prefer to use TOON.
 ---
 
-# sfmeta-reader
+# salesforce-metadata-reader
 
 A CLI tool that converts verbose Salesforce metadata XML into compact, token-efficient representations for analysis.
 
 ## When to Use
 
-Use sfmeta-reader whenever you need to:
+Use salesforce-metadata-reader whenever you need to:
 - **Analyze** Salesforce metadata XML files (objects, fields, profiles, flows, etc.)
 - **Summarize** what a metadata component does
 - **Compare** two versions of metadata (before/after)
@@ -26,6 +26,14 @@ Run the wrapper script from this skill's directory:
 
 # Windows (PowerShell)
 .\scripts\run.ps1 --input <PATH_TO_XML> --format toon
+```
+Binary location from this skill's directory: 
+```bash
+./bin/sfmeta-reader-darwin-aarch64
+./bin/sfmeta-reader-darwin-x86_64
+./bin/sfmeta-reader-linux-aarch64
+./bin/sfmeta-reader-linux-x86_64
+./bin/sfmeta-reader-windows-x86_64
 ```
 
 ## Output Format Selection
