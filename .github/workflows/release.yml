@@ -1,0 +1,245 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Platforms to build (macos, linux, windows, all)"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - macos
+          - linux
+          - windows
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Detect which platforms to build from commit message keywords
+  detect-platforms:
+    runs-on: ubuntu-24.04
+    outputs:
+      build-macos: ${{ steps.detect.outputs.build-macos }}
+      build-linux: ${{ steps.detect.outputs.build-linux }}
+      build-windows: ${{ steps.detect.outputs.build-windows }}
+    steps:
+      - name: Detect platforms from commit message or dispatch input
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PLATFORM="${{ github.event.inputs.platforms }}"
+            case "$PLATFORM" in
+              all)
+                echo "build-macos=true"   >> "$GITHUB_OUTPUT"
+                echo "build-linux=true"   >> "$GITHUB_OUTPUT"
+                echo "build-windows=true" >> "$GITHUB_OUTPUT"
+                ;;
+              macos)
+                echo "build-macos=true"    >> "$GITHUB_OUTPUT"
+                echo "build-linux=false"   >> "$GITHUB_OUTPUT"
+                echo "build-windows=false" >> "$GITHUB_OUTPUT"
+                ;;
+              linux)
+                echo "build-macos=false"   >> "$GITHUB_OUTPUT"
+                echo "build-linux=true"    >> "$GITHUB_OUTPUT"
+                echo "build-windows=false" >> "$GITHUB_OUTPUT"
+                ;;
+              windows)
+                echo "build-macos=false"   >> "$GITHUB_OUTPUT"
+                echo "build-linux=false"   >> "$GITHUB_OUTPUT"
+                echo "build-windows=true"  >> "$GITHUB_OUTPUT"
+                ;;
+            esac
+          else
+            # Read commit message for keywords
+            MSG="${{ github.event.head_commit.message }}"
+            MACOS=false; LINUX=false; WINDOWS=false
+
+            if echo "$MSG" | grep -qi '\[ci-all\]'; then
+              MACOS=true; LINUX=true; WINDOWS=true
+            else
+              echo "$MSG" | grep -qi '\[ci-macos\]'   && MACOS=true
+              echo "$MSG" | grep -qi '\[ci-linux\]'   && LINUX=true
+              echo "$MSG" | grep -qi '\[ci-windows\]' && WINDOWS=true
+            fi
+
+            # Default: if no keyword found, skip all builds
+            echo "build-macos=$MACOS"     >> "$GITHUB_OUTPUT"
+            echo "build-linux=$LINUX"     >> "$GITHUB_OUTPUT"
+            echo "build-windows=$WINDOWS" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "=== Platform detection ==="
+          cat "$GITHUB_OUTPUT"
+
+  # ── macOS builds ──────────────────────────────────────────────
+  build-macos:
+    needs: detect-platforms
+    if: needs.detect-platforms.outputs.build-macos == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            artifact: sfmeta-reader-darwin-x86_64
+          - target: aarch64-apple-darwin
+            artifact: sfmeta-reader-darwin-aarch64
+    runs-on: macos-15
+    name: Build ${{ matrix.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Rename binary
+        run: |
+          cp target/${{ matrix.target }}/release/sfmeta-reader ${{ matrix.artifact }}
+          chmod +x ${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  # ── Linux builds ──────────────────────────────────────────────
+  build-linux:
+    needs: detect-platforms
+    if: needs.detect-platforms.outputs.build-linux == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            artifact: sfmeta-reader-linux-x86_64
+            cross: false
+          - target: aarch64-unknown-linux-gnu
+            artifact: sfmeta-reader-linux-aarch64
+            cross: true
+    runs-on: ubuntu-24.04
+    name: Build ${{ matrix.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p .cargo
+          cat >> .cargo/config.toml <<EOF
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Rename binary
+        run: |
+          cp target/${{ matrix.target }}/release/sfmeta-reader ${{ matrix.artifact }}
+          chmod +x ${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  # ── Windows builds ────────────────────────────────────────────
+  build-windows:
+    needs: detect-platforms
+    if: needs.detect-platforms.outputs.build-windows == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            artifact: sfmeta-reader-windows-x86_64
+          - target: aarch64-pc-windows-msvc
+            artifact: sfmeta-reader-windows-aarch64
+    runs-on: windows-2025
+    name: Build ${{ matrix.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Rename binary
+        shell: pwsh
+        run: |
+          Copy-Item "target/${{ matrix.target }}/release/sfmeta-reader.exe" `
+                    "${{ matrix.artifact }}.exe"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.exe
+
+  # ── GitHub Release ────────────────────────────────────────────
+  release:
+    needs: [detect-platforms, build-macos, build-linux, build-windows]
+    if: |
+      always() &&
+      startsWith(github.ref, 'refs/tags/v') &&
+      !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+      - name: List artifacts
+        run: find artifacts -type f | sort
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Package skill folder ──────────────────────────────────────
+  package-skill:
+    needs: [detect-platforms, build-macos, build-linux, build-windows]
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v6
+        with:
+          path: downloaded
+      - name: Assemble skill package
+        run: |
+          mkdir -p skills/sfmeta-reader/bin
+          for dir in downloaded/*/; do
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                cp "$file" "skills/sfmeta-reader/bin/"
+                chmod +x "skills/sfmeta-reader/bin/$(basename "$file")" 2>/dev/null || true
+              fi
+            done
+          done
+          echo "=== Skill package contents ==="
+          find skills/sfmeta-reader -type f | sort
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sfmeta-reader-skill
+          path: skills/sfmeta-reader/
